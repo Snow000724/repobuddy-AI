@@ -1,0 +1,21 @@
+{
+  "name": "repobuddy-ai",
+  "version": "1.0.0",
+  "description": "Understand any codebase. Find bugs faster. Contribute with confidence.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "hacktoberfest",
+    "github-api",
+    "open-source",
+    "developer-tools",
+    "beginner-friendly",
+    "ai-assistant"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

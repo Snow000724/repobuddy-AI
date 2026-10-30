@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RepoBuddy AI — Understand Any Codebase. Find Bugs Faster. Contribute with Confidence.</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="min-h-screen flex flex-col selection:bg-sky-500/30 selection:text-sky-200">
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none"></div>
+
+  <!-- Top Navigation Bar -->
+  <header class="sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/85 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
+      <!-- Brand Logo & Wordmark -->
+      <button type="button" id="brand-home-btn" class="flex items-center gap-3 text-left group focus:outline-none">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-400 via-indigo-500 to-emerald-400 p-[1px] shadow-lg shadow-sky-500/10">
+          <div class="w-full h-full bg-slate-950 rounded-[11px] flex items-center justify-center">
+            <svg width="20" height="20" class="w-5 h-5 text-sky-400 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+            </svg>
+          </div>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-lg tracking-tight text-white">RepoBuddy <span class="text-sky-400">AI</span></span>
+            <span class="hidden sm:inline-block px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+              Hacktoberfest x KCET
+            </span>
+          </div>
+          <p class="text-[11px] text-slate-400 hidden sm:block">Open-Source Repository &amp; Code Assistant</p>
+        </div>
+      </button>
+
+      <!-- Main Navigation Tabs -->
+      <nav class="flex items-center gap-1 sm:gap-1.5 overflow-x-auto py-1" aria-label="Primary Navigation">
+        <button type="button" id="nav-tab-analyzer" class="px-3.5 py-2 rounded-lg text-sm font-medium bg-sky-500/15 text-sky-300 border border-sky-500/30 transition">
+          Repo Analyzer
+        </button>
+        <button type="button" id="nav-tab-explainer" class="px-3.5 py-2 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800/60 transition">
+          Code Explainer
+        </button>
+        <button type="button" id="nav-tab-bughelper" class="px-3.5 py-2 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800/60 transition">
+          Bug Helper
+        </button>
+        <button type="button" id="nav-tab-testsuite" class="px-3.5 py-2 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800/60 transition">
+          Self-Test
+        </button>
+      </nav>
+
+      <!-- Right Controls: Demo Mode & AI Settings -->
+      <div class="flex items-center gap-2 shrink-0">
+        <button type="button" id="btn-toggle-demo" title="Toggle between Live GitHub REST API and Labeled Offline Demo Data" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800/80 text-slate-300 border border-slate-700 hover:border-slate-500 flex items-center gap-1.5 transition">
+          <span class="w-2 h-2 rounded-full bg-emerald-400"></span> Live GitHub API
+        </button>
+        <button type="button" id="btn-open-ai-settings" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 flex items-center gap-1.5 transition">
+          <svg width="14" height="14" class="w-3.5 h-3.5 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
+          </svg>
+          <span id="ai-status-label" class="text-xs text-slate-300 font-medium hidden md:inline">AI: Grounded Static Mode</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Clearly Labeled Demo Mode Active Banner -->
+  <div id="demo-mode-banner" class="hidden bg-amber-500/10 border-b border-amber-500/30 px-4 py-2 text-center text-xs text-amber-200">
+    <strong>DEMONSTRATION MODE ACTIVE:</strong> Using curated sample repository data for offline/rate-limit resilience. Click <strong>"Demo Mode: ON"</strong> in the top bar anytime to switch back to live GitHub REST API queries.
+  </div>
+
+  <!-- Main Workspace Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    <!-- ==========================================
+         VIEW 1: HOMEPAGE & REPOSITORY ANALYZER
+         ========================================== -->
+    <section id="view-analyzer" class="space-y-10">
+
+      <!-- Hero Landing Section -->
+      <div class="text-center max-w-3xl mx-auto space-y-5 pt-2">
+        <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-sky-500/10 border border-sky-500/25 text-sky-300 text-xs font-medium">
+          <span>Built for Beginners in Open Source</span>
+          <span class="text-slate-600">•</span>
+          <span>Powered by GitHub REST API &amp; Grounded AI</span>
+        </div>
+
+        <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-white leading-tight">
+          Understand any codebase.<br>
+          <span class="bg-gradient-to-r from-sky-400 via-indigo-400 to-emerald-400 bg-clip-text text-transparent">
+            Find bugs faster. Contribute with confidence.
+          </span>
+        </h1>
+
+        <p class="text-base sm:text-lg text-slate-300 max-w-2xl mx-auto">
+          Paste any public GitHub repository URL below to get a clear, beginner-friendly breakdown of what the project does, how its files fit together, and how you can make your first open-source contribution.
+        </p>
+
+        <!-- GitHub Repository URL Input Form -->
+        <form id="repo-analyze-form" class="mt-6 max-w-2xl mx-auto" novalidate>
+          <div class="flex flex-col sm:flex-row gap-2.5 p-2 rounded-2xl bg-slate-900/90 border border-slate-700/80 shadow-2xl">
+            <div class="flex-1 flex items-center gap-2.5 px-3 py-2">
+              <svg width="20" height="20" class="w-5 h-5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+              </svg>
+              <label for="repo-url-input" class="sr-only">GitHub Repository URL</label>
+              <input
+                type="url"
+                id="repo-url-input"
+                placeholder="https://github.com/expressjs/express"
+                value="https://github.com/expressjs/express"
+                class="w-full bg-transparent text-white placeholder-slate-400 text-sm sm:text-base focus:outline-none font-mono"
+                required
+              >
+            </div>
+            <button
+              type="submit"
+              id="btn-analyze-repo"
+              class="px-6 py-3 rounded-xl font-semibold text-sm sm:text-base text-slate-950 bg-gradient-to-r from-sky-400 to-emerald-400 hover:from-sky-300 hover:to-emerald-300 transition shadow-lg shadow-sky-500/20 shrink-0"
+            >
+              Analyze Repository
+            </button>
+          </div>
+        </form>
+
+        <!-- Quick-Try Repository Pills -->
+        <div class="flex flex-wrap items-center justify-center gap-2 text-xs text-slate-400 pt-1">
+          <span>Try a public repository:</span>
+          <button type="button" data-url="https://github.com/expressjs/express" class="btn-sample-repo px-2.5 py-1 rounded-md bg-slate-900 hover:bg-slate-800 text-sky-300 border border-slate-800 transition font-mono">
+            expressjs/express
+          </button>
+          <button type="button" data-url="https://github.com/pallets/flask" class="btn-sample-repo px-2.5 py-1 rounded-md bg-slate-900 hover:bg-slate-800 text-sky-300 border border-slate-800 transition font-mono">
+            pallets/flask
+          </button>
+          <button type="button" data-url="https://github.com/firstcontributions/first-contributions" class="btn-sample-repo px-2.5 py-1 rounded-md bg-slate-900 hover:bg-slate-800 text-sky-300 border border-slate-800 transition font-mono">
+            firstcontributions/first-contributions
+          </button>
+        </div>
+      </div>
+
+      <!-- Error & Validation Alert Box -->
+      <div id="repo-error-banner" class="hidden max-w-3xl mx-auto p-4 rounded-xl bg-rose-950/60 border border-rose-500/40"></div>
+
+      <!-- Loading State Indicator -->
+      <div id="repo-loading-state" class="hidden max-w-3xl mx-auto p-8 glass-card text-center space-y-3">
+        <div class="w-10 h-10 border-2 border-sky-400 border-t-transparent rounded-full animate-spin mx-auto"></div>
+        <p class="text-sm font-semibold text-white">Analyzing Public GitHub Repository...</p>
+        <p id="repo-loading-step" class="text-xs text-slate-400 font-mono">Connecting to api.github.com...</p>
+      </div>
+
+      <!-- Three Core Feature Cards -->
+      <div id="feature-cards-grid" class="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <!-- Card 1: Understand Code -->
+        <div id="card-feature-understand" class="glass-card glass-card-interactive p-6 cursor-pointer flex flex-col justify-between">
+          <div>
+            <div class="w-11 h-11 rounded-xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-400 mb-4">
+              <svg width="24" height="24" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+              </svg>
+            </div>
+            <h2 class="text-lg font-bold text-white">Understand Code</h2>
+            <p class="text-sm text-slate-300 mt-2">
+              Paste unfamiliar functions or scripts to get a beginner-friendly breakdown of variables, execution flow, edge cases, and clean improvements.
+            </p>
+          </div>
+          <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs font-semibold text-sky-400">
+            <span>Open Code Explainer</span>
+            <span>→</span>
+          </div>
+        </div>
+
+        <!-- Card 2: Find Bugs -->
+        <div id="card-feature-bugs" class="glass-card glass-card-interactive p-6 cursor-pointer flex flex-col justify-between">
+          <div>
+            <div class="w-11 h-11 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-4">
+              <svg width="24" height="24" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+              </svg>
+            </div>
+            <h2 class="text-lg font-bold text-white">Find Bugs</h2>
+            <p class="text-sm text-slate-300 mt-2">
+              Submit broken code and describe what went wrong to identify the likely root cause, a corrected code snippet, and a small verification test case.
+            </p>
+          </div>
+          <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs font-semibold text-amber-400">
+            <span>Open Bug Helper</span>
+            <span>→</span>
+          </div>
+        </div>
+
+        <!-- Card 3: Start Contributing -->
+        <div id="card-feature-contribute" class="glass-card glass-card-interactive p-6 cursor-pointer flex flex-col justify-between">
+          <div>
+            <div class="w-11 h-11 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mb-4">
+              <svg width="24" height="24" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+              </svg>
+            </div>
+            <h2 class="text-lg font-bold text-white">Start Contributing</h2>
+            <p class="text-sm text-slate-300 mt-2">
+              Discover beginner-friendly contribution ideas tailored to the repository's documentation, examples, and test coverage, plus live good-first-issues.
+            </p>
+          </div>
+          <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs font-semibold text-emerald-400">
+            <span>Explore Contribution Guide</span>
+            <span>→</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==========================================
+           REPOSITORY ANALYSIS RESULTS CONTAINER
+           ========================================== -->
+      <div id="repo-results-container" class="hidden space-y-8 pt-2">
+
+        <!-- AI Fallback Notice (if Live AI failed during analysis) -->
+        <div id="repo-ai-warning" class="hidden p-4 rounded-xl bg-amber-950/50 border border-amber-500/40"></div>
+
+        <!-- 1. Repository Metadata Header Card -->
+        <div class="glass-card p-6 space-y-5">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <h2 id="res-repo-name" class="text-2xl font-bold text-white font-mono">owner/repo</h2>
+              <a id="res-repo-link" href="https://github.com" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-sky-300 transition">
+                View on GitHub ↗
+              </a>
+            </div>
+            <span id="res-data-origin-badge" class="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+              LIVE DATA
+            </span>
+          </div>
+
+          <p id="res-repo-desc" class="text-base text-slate-200"></p>
+
+          <!-- Key Repository Metrics -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3.5 pt-2">
+            <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800">
+              <span class="text-xs text-slate-400 block">Primary Language</span>
+              <span id="res-stat-lang" class="text-base font-bold text-sky-300 mt-0.5 block">-</span>
+            </div>
+            <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800">
+              <span class="text-xs text-slate-400 block">Stars</span>
+              <span id="res-stat-stars" class="text-base font-bold text-amber-300 mt-0.5 block">0</span>
+            </div>
+            <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800">
+              <span class="text-xs text-slate-400 block">Forks</span>
+              <span id="res-stat-forks" class="text-base font-bold text-indigo-300 mt-0.5 block">0</span>
+            </div>
+            <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800">
+              <span class="text-xs text-slate-400 block">License</span>
+              <span id="res-stat-license" class="text-base font-bold text-emerald-300 mt-0.5 block">-</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Beginner-Friendly AI Project Explanation -->
+        <div class="glass-card p-6 space-y-6">
+          <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-4">
+            <div>
+              <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                <span>AI Project Explanation</span>
+              </h3>
+              <p class="text-xs text-slate-400 mt-0.5">Strictly grounded in retrieved repository metadata, file list, and README documentation.</p>
+            </div>
+            <span id="res-explanation-mode-badge" class="px-2.5 py-1 rounded-md text-xs font-semibold bg-sky-500/15 text-sky-300 border border-sky-500/30">
+              Grounded Repository Evidence Analysis
+            </span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div class="p-4 rounded-xl bg-slate-900/75 border border-slate-800/90 space-y-1.5">
+              <h4 class="text-xs font-bold uppercase tracking-wider text-sky-400">1. What the Project Does</h4>
+              <p id="exp-what-it-does" class="text-sm text-slate-200"></p>
+            </div>
+            <div class="p-4 rounded-xl bg-slate-900/75 border border-slate-800/90 space-y-1.5">
+              <h4 class="text-xs font-bold uppercase tracking-wider text-indigo-400">2. Which Problem It Solves</h4>
+              <p id="exp-problem-solved" class="text-sm text-slate-200"></p>
+            </div>
+          </div>
+
+          <div class="p-4 rounded-xl bg-slate-900/75 border border-slate-800/90 space-y-1.5">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-emerald-400">3. Main Technologies Used</h4>
+            <p id="exp-tech-used" class="text-sm text-slate-200"></p>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <div class="p-4 rounded-xl bg-slate-900/75 border border-slate-800/90 space-y-2.5">
+              <h4 class="text-xs font-bold uppercase tracking-wider text-amber-400">4. How Important Files Relate to Each Other</h4>
+              <ul id="exp-file-relations" class="space-y-2"></ul>
+            </div>
+            <div class="p-4 rounded-xl bg-slate-900/75 border border-slate-800/90 space-y-2.5">
+              <h4 class="text-xs font-bold uppercase tracking-wider text-sky-400">5. How a Beginner Can Start Exploring</h4>
+              <ol id="exp-beginner-steps" class="space-y-2"></ol>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Manageable List of Important Files & README Content -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <!-- Important Files Column -->
+          <div class="lg:col-span-7 glass-card p-6 space-y-4">
+            <div>
+              <h3 class="text-lg font-bold text-white">Important Repository Files</h3>
+              <p class="text-xs text-slate-400 mt-0.5">Categorized by role. Click "Inspect File" on any file to preview its code or send it to the Code Explainer.</p>
+            </div>
+            <div id="res-important-files" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+          </div>
+
+          <!-- README Content Column -->
+          <div class="lg:col-span-5 glass-card p-6 flex flex-col justify-between space-y-4">
+            <div>
+              <h3 class="text-lg font-bold text-white">Repository README Content</h3>
+              <p class="text-xs text-slate-400 mt-0.5">Retrieved directly from the repository root.</p>
+            </div>
+            <pre id="res-readme-content" class="flex-1 max-h-96 overflow-y-auto p-4 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-300 whitespace-pre-wrap font-mono leading-relaxed"></pre>
+          </div>
+        </div>
+
+        <!-- 4. First Contribution Guide -->
+        <div id="section-first-contribution" class="glass-card p-6 space-y-5">
+          <div class="border-b border-slate-800 pb-4">
+            <h3 class="text-xl font-bold text-white">First Contribution Guide</h3>
+            <p class="text-xs text-slate-400 mt-0.5">
+              Actionable ways a beginner can contribute. Automatically generated suggestions are clearly labeled and separated from confirmed open GitHub issues.
+            </p>
+          </div>
+
+          <div class="space-y-3">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-amber-300">Beginner Contribution Ideas (Labeled Suggestions)</h4>
+            <div id="res-contrib-suggestions" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+          </div>
+
+          <div class="space-y-3 pt-2">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-emerald-300">Confirmed "good first issue" Items from GitHub API</h4>
+            <div id="res-confirmed-issues" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         VIEW 2: CODE EXPLAINER
+         ========================================== -->
+    <section id="view-explainer" class="hidden space-y-6">
+      <div class="glass-card p-6 space-y-5">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
+          <div>
+            <h2 class="text-2xl font-bold text-white">Code Explainer</h2>
+            <p class="text-sm text-slate-300 mt-0.5">Paste any unfamiliar code snippet and select its language for a structured, beginner-friendly walkthrough.</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-xs text-slate-400">Load sample:</span>
+            <button type="button" data-preset="js-fetch" class="btn-preset-explainer px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-sky-300 transition">
+              JS Async Fetch
+            </button>
+            <button type="button" data-preset="py-filter" class="btn-preset-explainer px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-sky-300 transition">
+              Python Contributor Counter
+            </button>
+            <button type="button" data-preset="js-binary-search" class="btn-preset-explainer px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-sky-300 transition">
+              Binary Search
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 items-center">
+          <div>
+            <label for="explainer-lang-select" class="block text-xs font-semibold text-slate-300 mb-1.5">Programming Language</label>
+            <select id="explainer-lang-select" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white focus:outline-none focus:border-sky-400">
+              <option value="JavaScript">JavaScript</option>
+              <option value="Python">Python</option>
+              <option value="TypeScript">TypeScript</option>
+              <option value="Java">Java</option>
+              <option value="C / C++">C / C++</option>
+              <option value="Go">Go</option>
+              <option value="Rust">Rust</option>
+              <option value="HTML / CSS">HTML / CSS</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label for="explainer-code-input" class="block text-xs font-semibold text-slate-300 mb-1.5">Code Snippet</label>
+          <textarea
+            id="explainer-code-input"
+            rows="9"
+            placeholder="Paste a function, loop, or module snippet here..."
+            class="w-full p-4 rounded-xl code-editor font-mono"
+          ></textarea>
+        </div>
+
+        <div id="explainer-error-box" class="hidden p-3.5 rounded-xl bg-amber-950/60 border border-amber-500/40 text-xs text-amber-200"></div>
+
+        <div class="flex justify-end">
+          <button type="button" id="btn-explain-code" class="px-6 py-2.5 rounded-xl font-semibold text-sm text-slate-950 bg-gradient-to-r from-sky-400 to-indigo-400 hover:from-sky-300 hover:to-indigo-300 transition shadow-lg">
+            Explain Code
+          </button>
+        </div>
+      </div>
+
+      <!-- Code Explanation Results -->
+      <div id="explainer-results-box" class="hidden glass-card p-6 space-y-5">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
+          <h3 class="text-lg font-bold text-white">Structured Code Breakdown</h3>
+          <span id="explainer-mode-badge" class="px-2.5 py-1 rounded-md text-xs font-semibold bg-sky-500/15 text-sky-300 border border-sky-500/30">
+            Static AST/Pattern Code Analyzer
+          </span>
+        </div>
+
+        <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1">
+          <h4 class="text-xs font-bold uppercase tracking-wider text-sky-400">1. What the Code Does</h4>
+          <p id="explainer-what" class="text-sm text-slate-200"></p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-indigo-400">2. Important Variables &amp; Functions</h4>
+            <ul id="explainer-vars" class="space-y-1.5"></ul>
+          </div>
+          <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-amber-400">4. Potential Errors or Edge Cases</h4>
+            <ul id="explainer-edge-cases" class="space-y-1.5"></ul>
+          </div>
+        </div>
+
+        <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2">
+          <h4 class="text-xs font-bold uppercase tracking-wider text-emerald-400">3. How the Code Executes (Step-by-Step)</h4>
+          <ol id="explainer-flow" class="space-y-2"></ol>
+        </div>
+
+        <div class="p-4 rounded-xl bg-emerald-950/25 border border-emerald-500/30 space-y-1">
+          <h4 class="text-xs font-bold uppercase tracking-wider text-emerald-300">5. Beginner-Friendly Improvement</h4>
+          <p id="explainer-improvement" class="text-sm text-slate-200"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         VIEW 3: BUG HELPER
+         ========================================== -->
+    <section id="view-bughelper" class="hidden space-y-6">
+      <div class="glass-card p-6 space-y-5">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
+          <div>
+            <h2 class="text-2xl font-bold text-white">Bug Helper</h2>
+            <p class="text-sm text-slate-300 mt-0.5">Submit a buggy code snippet and describe the problem to get the likely cause, a suggested fix, an explanation, and a test case.</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-xs text-slate-400">Try buggy sample:</span>
+            <button type="button" data-preset="loop-bounds" class="btn-preset-bug px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-amber-300 transition">
+              Off-by-One Loop Bug
+            </button>
+            <button type="button" data-preset="missing-await" class="btn-preset-bug px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-amber-300 transition">
+              Missing Async Await
+            </button>
+            <button type="button" data-preset="py-mutable-default" class="btn-preset-bug px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-amber-300 transition">
+              Python Mutable Default
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label for="bug-lang-select" class="block text-xs font-semibold text-slate-300 mb-1.5">Programming Language</label>
+            <select id="bug-lang-select" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white focus:outline-none focus:border-sky-400">
+              <option value="JavaScript">JavaScript</option>
+              <option value="Python">Python</option>
+              <option value="TypeScript">TypeScript</option>
+              <option value="Java">Java</option>
+              <option value="C / C++">C / C++</option>
+            </select>
+          </div>
+          <div class="md:col-span-2">
+            <label for="bug-problem-input" class="block text-xs font-semibold text-slate-300 mb-1.5">Describe the Problem or Error Message</label>
+            <input
+              type="text"
+              id="bug-problem-input"
+              placeholder="e.g., Function returns NaN instead of the sum of elements"
+              class="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white focus:outline-none focus:border-sky-400"
+            >
+          </div>
+        </div>
+
+        <div>
+          <label for="bug-code-input" class="block text-xs font-semibold text-slate-300 mb-1.5">Buggy Code Snippet</label>
+          <textarea
+            id="bug-code-input"
+            rows="8"
+            placeholder="Paste the code that is not working as expected..."
+            class="w-full p-4 rounded-xl code-editor font-mono"
+          ></textarea>
+        </div>
+
+        <div id="bug-error-box" class="hidden p-3.5 rounded-xl bg-amber-950/60 border border-amber-500/40 text-xs text-amber-200"></div>
+
+        <div class="flex justify-end">
+          <button type="button" id="btn-find-bug" class="px-6 py-2.5 rounded-xl font-semibold text-sm text-slate-950 bg-gradient-to-r from-amber-400 to-rose-400 hover:from-amber-300 hover:to-rose-300 transition shadow-lg">
+            Diagnose &amp; Suggest Fix
+          </button>
+        </div>
+      </div>
+
+      <!-- Bug Helper Output -->
+      <div id="bug-results-box" class="hidden glass-card p-6 space-y-5">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
+          <div>
+            <h3 class="text-lg font-bold text-white">Bug Diagnostic &amp; Suggested Fix</h3>
+            <p id="bug-disclaimer" class="text-xs text-amber-300 mt-0.5"></p>
+          </div>
+          <span id="bug-mode-badge" class="px-2.5 py-1 rounded-md text-xs font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+            Static Bug Pattern Analyzer
+          </span>
+        </div>
+
+        <div class="p-4 rounded-xl bg-rose-950/25 border border-rose-500/30 space-y-1">
+          <h4 class="text-xs font-bold uppercase tracking-wider text-rose-300">1. Likely Cause</h4>
+          <p id="bug-likely-cause" class="text-sm text-slate-200"></p>
+        </div>
+
+        <div class="p-4 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-emerald-400">2. Suggested Correction</h4>
+            <button type="button" id="btn-copy-bug-fix" class="px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 transition">
+              Copy Fixed Code
+            </button>
+          </div>
+          <pre id="bug-corrected-code" class="p-3.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-emerald-300 font-mono overflow-x-auto whitespace-pre-wrap"></pre>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-sky-400">3. Explanation of the Correction</h4>
+            <p id="bug-explanation" class="text-sm text-slate-200"></p>
+          </div>
+          <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-indigo-400">4. Small Verification Test Case</h4>
+            <pre id="bug-test-case" class="text-xs text-indigo-200 font-mono whitespace-pre-wrap mt-1"></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         VIEW 4: INTERACTIVE SELF-TEST & QA SUITE
+         ========================================== -->
+    <section id="view-testsuite" class="hidden space-y-6">
+      <div class="glass-card p-6 space-y-5">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
+          <div>
+            <h2 class="text-2xl font-bold text-white">End-to-End User Journey Verification Suite</h2>
+            <p class="text-sm text-slate-300 mt-0.5">
+              Run automated in-browser checks covering all 6 required hackathon testing scenarios: valid repo URL, invalid URL, non-existent repo, code snippet analysis, failed AI request handling, and responsive layout.
+            </p>
+          </div>
+          <button type="button" id="btn-run-verification-suite" class="px-5 py-2.5 rounded-xl font-semibold text-sm text-slate-950 bg-gradient-to-r from-emerald-400 to-sky-400 hover:from-emerald-300 hover:to-sky-300 transition shadow-lg">
+            Run All 6 Verification Tests
+          </button>
+        </div>
+
+        <div id="test-suite-results" class="space-y-3">
+          <p class="text-sm text-slate-400">Click <strong>"Run All 6 Verification Tests"</strong> above to execute the live diagnostic suite.</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- File Inspector Modal -->
+  <div id="file-inspector-modal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="glass-card max-w-3xl w-full p-6 space-y-4 border border-slate-700 shadow-2xl">
+      <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3">
+        <h3 id="inspector-file-title" class="text-base font-bold text-white font-mono truncate">File Preview</h3>
+        <div class="flex items-center gap-2">
+          <button type="button" id="btn-send-file-to-explainer" class="px-3 py-1.5 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/30 text-xs font-semibold transition">
+            Send to Code Explainer →
+          </button>
+          <button type="button" id="btn-close-inspector" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition">
+            Close
+          </button>
+        </div>
+      </div>
+      <pre id="inspector-file-content" class="max-h-96 overflow-y-auto p-4 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-200 font-mono whitespace-pre-wrap"></pre>
+    </div>
+  </div>
+
+  <!-- AI Provider Configuration Modal -->
+  <div id="ai-settings-modal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="glass-card max-w-lg w-full p-6 space-y-4 border border-slate-700 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div>
+          <h3 class="text-lg font-bold text-white">AI Integration Settings</h3>
+          <p class="text-xs text-slate-400">Connect an open-weight model (Llama 3.3, Qwen 2.5 Coder, Mistral) or use the local backend proxy.</p>
+        </div>
+        <button type="button" id="btn-close-ai-settings" class="text-slate-400 hover:text-white text-sm font-semibold">✕</button>
+      </div>
+
+      <div class="space-y-3 text-sm">
+        <div>
+          <label for="ai-provider-select" class="block text-xs font-semibold text-slate-300 mb-1">AI Provider Mode</label>
+          <select id="ai-provider-select" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm">
+            <option value="none">Grounded Static Analysis Only (No API Key Required)</option>
+            <option value="proxy">Local Node.js Backend Proxy (http://localhost:3000/api/ai — keeps key in .env)</option>
+            <option value="openrouter">OpenRouter API (Open-Weight Llama 3.3 / Qwen / Mistral)</option>
+            <option value="groq">Groq Cloud API (Llama-3.3-70B-Versatile)</option>
+            <option value="ollama">Local Ollama Instance (http://localhost:11434/api/chat)</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="ai-model-input" class="block text-xs font-semibold text-slate-300 mb-1">Open-Weight Model ID</label>
+          <input type="text" id="ai-model-input" value="meta-llama/llama-3.3-70b-instruct:free" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm font-mono">
+        </div>
+
+        <div>
+          <label for="ai-key-input" class="block text-xs font-semibold text-slate-300 mb-1">API Key (kept in memory only; leave blank for Backend Proxy / Ollama)</label>
+          <input type="password" id="ai-key-input" placeholder="sk-or-... or gsk_..." class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm font-mono">
+        </div>
+
+        <label class="flex items-center gap-2.5 pt-2 cursor-pointer">
+          <input type="checkbox" id="ai-simulate-failure" class="rounded bg-slate-900 border-slate-700 text-rose-500">
+          <span class="text-xs text-slate-300">Simulate Failed AI Request (for testing error handling &amp; fallback banner)</span>
+        </label>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+        <button type="button" id="btn-save-ai-settings" class="px-4 py-2 rounded-xl bg-sky-400 hover:bg-sky-300 text-slate-950 font-semibold text-xs transition">
+          Save AI Settings
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-800/80 bg-slate-950/90 mt-16 py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400">
+      <div>
+        <span class="font-bold text-slate-200">RepoBuddy AI</span> — Understand any codebase. Find bugs faster. Contribute with confidence.
+        <p class="mt-1">Built for <strong>Hacktoberfest Hack Day x KCET (Amritsar)</strong> • Open-Source under the MIT License.</p>
+      </div>
+      <div class="flex items-center gap-4">
+        <span>Public GitHub REST API v3</span>
+        <span>•</span>
+        <span>Zero Exposed Secrets</span>
+        <span>•</span>
+        <a href="https://docs.github.com/en/rest" target="_blank" rel="noopener noreferrer" class="text-sky-400 hover:underline">GitHub API Docs ↗</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/github.js"></script>
+  <script src="js/analyzer.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
